@@ -33,6 +33,8 @@
   (slot reserva (type SYMBOL))
   (slot tiempo_min (type NUMBER))
   (slot abierto (type SYMBOL))
+  (slot lat (type NUMBER))
+  (slot lon (type NUMBER))
 )
 
 (deftemplate descartar (slot rest) (slot razon))
@@ -202,4 +204,48 @@
   (printout t crlf "*** " ?r " - " ?n
                 " => U=" (format nil "%.3f" ?U)
                 "  [" (implode$ $?J) "]" crlf)
+)
+
+; ---------- DEFFACTS RESTAURANTES BASE ----------
+(deffacts restaurantes_base
+  (restaurante (id r1) (nombre "Obelisco Pizza")
+    (cocinas pizza italiana) (precio_pp 15000) (rating 4.5) (n_resenas 200)
+    (atributos accesible rampa) (reserva si) (tiempo_min 10) (abierto si)
+    (lat -34.6037) (lon -58.3816))
+
+  (restaurante (id r2) (nombre "Palermo Sushi")
+    (cocinas japonesa sushi) (precio_pp 22000) (rating 4.6) (n_resenas 180)
+    (atributos accesible) (reserva si) (tiempo_min 12) (abierto si)
+    (lat -34.5880) (lon -58.4300))
+
+  (restaurante (id r3) (nombre "Recoleta Bistró")
+    (cocinas francesa moderna) (precio_pp 28000) (rating 4.7) (n_resenas 250)
+    (atributos menu_braille) (reserva si) (tiempo_min 14) (abierto si)
+    (lat -34.5886) (lon -58.3974))
+
+  (restaurante (id r4) (nombre "San Telmo Parrilla")
+    (cocinas parrilla argentina) (precio_pp 20000) (rating 4.3) (n_resenas 320)
+    (atributos accesible lengua_de_senas) (reserva no) (tiempo_min 16) (abierto si)
+    (lat -34.6229) (lon -58.3730))
+
+  (restaurante (id r5) (nombre "Belgrano Trattoria")
+    (cocinas italiana pasta) (precio_pp 18000) (rating 4.4) (n_resenas 150)
+    (atributos rampa bano_accesible) (reserva si) (tiempo_min 18) (abierto si)
+    (lat -34.5622) (lon -58.4563))
+
+  (restaurante (id r6) (nombre "Puerto Madero Mar")
+    (cocinas pescados mariscos) (precio_pp 30000) (rating 4.6) (n_resenas 210)
+    (atributos accesible) (reserva si) (tiempo_min 15) (abierto si)
+    (lat -34.6079) (lon -58.3625))
+
+  (restaurante (id r7) (nombre "Caballito Casa de Comida")
+    (cocinas casera empanadas) (precio_pp 12000) (rating 4.1) (n_resenas 95)
+    (atributos) (reserva no) (tiempo_min 20) (abierto si)
+    (lat -34.6180) (lon -58.4420))
+
+  ; San Francisco Solano (Quilmes)
+  (restaurante (id r8) (nombre "Solano Grill")
+    (cocinas parrilla argentina) (precio_pp 14000) (rating 4.0) (n_resenas 80)
+    (atributos accesible) (reserva no) (tiempo_min 35) (abierto si)
+    (lat -34.7830) (lon -58.3110))
 )
