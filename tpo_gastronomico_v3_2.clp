@@ -13,6 +13,9 @@
   (slot wd (type NUMBER))
   (slot wq (type NUMBER))
   (slot wa (type NUMBER))
+  (slot direccion (default ""))
+  (slot latitud (type NUMBER) (default 0.0))
+  (slot longitud (type NUMBER) (default 0.0))
 )
 
 (deftemplate contexto
@@ -33,6 +36,9 @@
   (slot reserva (type SYMBOL))
   (slot tiempo_min (type NUMBER))
   (slot abierto (type SYMBOL))
+  (slot direccion (default ""))
+  (slot latitud (type NUMBER) (default 0.0))
+  (slot longitud (type NUMBER) (default 0.0))
 )
 
 (deftemplate descartar (slot rest) (slot razon))

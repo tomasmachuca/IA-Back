@@ -26,6 +26,14 @@ class ClipsRecommender:
         # Build a fact string like: (usuario (id u1) (presupuesto 18) ...)
         parts = [template]
         for k, v in slots.items():
+            # Filtrar campos None (opcionales)
+            if v is None:
+                continue
+            
+            # Filtrar strings vacíos si el campo tiene default vacío en CLIPS
+            if isinstance(v, str) and v == "":
+                continue
+            
             if isinstance(v, (int, float)):
                 parts.append(f'({k} {v})')
             elif isinstance(v, (list, tuple)):

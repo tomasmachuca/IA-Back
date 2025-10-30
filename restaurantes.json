@@ -1,0 +1,53 @@
+[
+  {
+    "id": "r1",
+    "nombre": "Trattoria X",
+    "cocinas": [
+      "italiana"
+    ],
+    "precio_pp": 17000,
+    "rating": 4.6,
+    "n_resenas": 220,
+    "atributos": [],
+    "reserva": "si",
+    "abierto": "si",
+    "direccion": "Av. Santa Fe 1234, Palermo, CABA",
+    "latitud": -34.5958383,
+    "longitud": -58.3847501
+  },
+  {
+    "id": "r2",
+    "nombre": "Bistró Y",
+    "cocinas": [
+      "italiana",
+      "fusion"
+    ],
+    "precio_pp": 19000,
+    "rating": 4.4,
+    "n_resenas": 120,
+    "atributos": [
+      "sin_tacc"
+    ],
+    "reserva": "si",
+    "abierto": "si",
+    "direccion": "Av. Libertador 5678, Recoleta, CABA",
+    "latitud": -34.5597059,
+    "longitud": -58.44490750000001
+  },
+  {
+    "id": "r3",
+    "nombre": "Cantina Z",
+    "cocinas": [
+      "pizza"
+    ],
+    "precio_pp": 12000,
+    "rating": 4.2,
+    "n_resenas": 80,
+    "atributos": [],
+    "reserva": "no",
+    "abierto": "si",
+    "direccion": "Defensa 1200, San Telmo, CABA",
+    "latitud": -34.62169799999999,
+    "longitud": -58.371224
+  }
+]

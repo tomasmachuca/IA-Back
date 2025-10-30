@@ -2,7 +2,7 @@
 README — Front-end + CLIPS (CLIPSpy)
 
 1) Instalar dependencias (recomendado: entorno virtual)
-   python -m venv .venv
+   py -m venv .venv
    .venv\Scripts\activate
    pip install -r requirements.txt
 
