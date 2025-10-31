@@ -91,6 +91,7 @@
 ; ---------- FILTROS (alta prioridad) ----------
 (defrule filtro-cerrado
   (declare (salience 50))
+  (usuario (solo_abiertos si))
   (restaurante (id ?r) (abierto no))
 =>
   (assert (descartar (rest ?r) (razon "cerrado en esta franja")))

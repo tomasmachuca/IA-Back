@@ -379,9 +379,16 @@ async def api_recommend(body: RequestBody):
         print(f"DEBUG: Filtrados restaurantes por rating_minimo >= {rating_min}, quedan {len(rs)} restaurantes")
     
     # Filtrar restaurantes por solo_abiertos si está especificado
-    if u.get('solo_abiertos') == 'si':
+    solo_abiertos_val = u.get('solo_abiertos')
+    print(f"DEBUG: solo_abiertos recibido: '{solo_abiertos_val}' (tipo: {type(solo_abiertos_val)})")
+    if solo_abiertos_val == 'si':
+        cantidad_antes = len(rs)
         rs = [r for r in rs if r.get('abierto') == 'si']
-        print(f"DEBUG: Filtrados restaurantes por solo_abiertos=si, quedan {len(rs)} restaurantes")
+        print(f"DEBUG: Filtrados restaurantes por solo_abiertos=si ({cantidad_antes} -> {len(rs)}), quedan {len(rs)} restaurantes")
+    elif solo_abiertos_val == 'no':
+        print(f"DEBUG: solo_abiertos=no, NO se filtrarán restaurantes por estado de apertura (mostrar todos)")
+    else:
+        print(f"DEBUG: solo_abiertos no especificado o vacío, NO se filtrarán restaurantes por estado de apertura")
     
     # Filtrar restaurantes por tiempo_espera_max si está especificado
     if u.get('tiempo_espera_max') is not None:

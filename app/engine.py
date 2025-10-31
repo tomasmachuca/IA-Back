@@ -34,6 +34,10 @@ class ClipsRecommender:
             if isinstance(v, str) and v == "":
                 continue
             
+            # Si solo_abiertos es "no", no enviarlo a CLIPS (usará default "" y no filtrará)
+            if k == "solo_abiertos" and v == "no":
+                continue
+            
             if isinstance(v, (int, float)):
                 parts.append(f'({k} {v})')
             elif isinstance(v, (list, tuple)):
