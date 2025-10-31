@@ -1,0 +1,77 @@
+{
+  "feedbacks": [
+    {
+      "usuario_id": "u1",
+      "restaurante_seleccionado": "r2",
+      "restaurantes_rechazados": [
+        "r3",
+        "r1"
+      ],
+      "contexto": {
+        "clima": "templado",
+        "dia": "viernes",
+        "franja": "cena"
+      },
+      "timestamp": "2025-10-31T12:28:17.910259"
+    },
+    {
+      "usuario_id": "u1",
+      "restaurante_seleccionado": "r1",
+      "restaurantes_rechazados": [],
+      "contexto": {
+        "clima": "templado",
+        "dia": "viernes",
+        "franja": "cena"
+      },
+      "timestamp": "2025-10-31T12:29:09.668764"
+    },
+    {
+      "usuario_id": "u1",
+      "restaurante_seleccionado": "r3",
+      "restaurantes_rechazados": [
+        "r1",
+        "r2"
+      ],
+      "contexto": {
+        "clima": "lluvia",
+        "dia": "viernes",
+        "franja": "cena"
+      },
+      "razones_preferencia": [],
+      "timestamp": "2025-10-31T12:35:09.524380"
+    },
+    {
+      "usuario_id": "u1",
+      "restaurante_seleccionado": "r3",
+      "restaurantes_rechazados": [
+        "r1",
+        "r2"
+      ],
+      "contexto": {
+        "clima": "lluvia",
+        "dia": "viernes",
+        "franja": "cena"
+      },
+      "razones_preferencia": [],
+      "timestamp": "2025-10-31T12:39:32.574276"
+    },
+    {
+      "usuario_id": "u1",
+      "restaurante_seleccionado": "r3",
+      "restaurantes_rechazados": [
+        "r1",
+        "r2"
+      ],
+      "contexto": {
+        "clima": "lluvia",
+        "dia": "viernes",
+        "franja": "cena"
+      },
+      "razones_preferencia": [
+        "distancia",
+        "abierto"
+      ],
+      "timestamp": "2025-10-31T12:45:51.907105"
+    }
+  ]
+}

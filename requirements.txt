@@ -3,3 +3,4 @@ uvicorn
 clipspy
 httpx
 python-dotenv
+numpy

@@ -16,6 +16,7 @@ ENV_FILE = BASE_DIR / ".env"
 load_dotenv(ENV_FILE)
 
 from .engine import ClipsRecommender
+from .neural_network import WeightOptimizerNN
 from fastapi.middleware.cors import CORSMiddleware
 
 CLP_PATH = os.environ.get("CLP_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "tpo_gastronomico_v3_2.clp")))
@@ -186,6 +187,9 @@ app.add_middleware(
 
 engine = ClipsRecommender(CLP_PATH)
 
+# Inicializar red neuronal para optimización de pesos
+nn_optimizer = WeightOptimizerNN(learning_rate=0.01)
+
 class Usuario(BaseModel):
     id: str = "u1"
     cocinas_favoritas: List[str] = ["italiana", "pizza"]
@@ -241,6 +245,7 @@ class RequestBody(BaseModel):
     usuario: Usuario
     contexto: Contexto
     restaurantes: List[Restaurante] = []
+    usar_pesos_optimizados: bool = True  # Por defecto usar pesos optimizados por IA
 
 @app.get("/api/restaurantes")
 async def get_restaurantes():
@@ -301,6 +306,46 @@ async def api_recommend(body: RequestBody):
     u = body.usuario.dict()
     c = body.contexto.dict()
     rs = [r.dict() for r in body.restaurantes]
+    
+    # Optimizar pesos usando red neuronal solo si el usuario lo permite
+    usar_pesos_optimizados = body.usar_pesos_optimizados if hasattr(body, 'usar_pesos_optimizados') else True
+    
+    if usar_pesos_optimizados and rs and len(rs) > 0:
+        try:
+            # Usar el primer restaurante como ejemplo para extraer características
+            restaurante_ejemplo = rs[0]
+            pesos_optimizados = nn_optimizer.predict_weights(u, restaurante_ejemplo, c)
+            
+            # Usar pesos optimizados por la red neuronal
+            # La NN aprende de los feedbacks pasados y ajusta los pesos para mejorar recomendaciones
+            pesos_originales = {
+                'wg': u.get('wg'),
+                'wp': u.get('wp'),
+                'wd': u.get('wd'),
+                'wq': u.get('wq'),
+                'wa': u.get('wa')
+            }
+            
+            u['wg'] = pesos_optimizados['wg']
+            u['wp'] = pesos_optimizados['wp']
+            u['wd'] = pesos_optimizados['wd']
+            u['wq'] = pesos_optimizados['wq']
+            u['wa'] = pesos_optimizados['wa']
+            
+            print(f"DEBUG: Pesos originales del usuario - wg:{pesos_originales['wg']}, wp:{pesos_originales['wp']}, wd:{pesos_originales['wd']}, wq:{pesos_originales['wq']}, wa:{pesos_originales['wa']}")
+            print(f"DEBUG: Pesos utilizados (optimizados por NN) - wg:{u['wg']:.3f}, wp:{u['wp']:.3f}, wd:{u['wd']:.3f}, wq:{u['wq']:.3f}, wa:{u['wa']:.3f}")
+        except Exception as e:
+            print(f"DEBUG: Error optimizando pesos con red neuronal: {e}")
+            import traceback
+            traceback.print_exc()
+            # Continuar con pesos por defecto si hay error
+            print(f"DEBUG: Usando pesos por defecto (error en NN) - wg:{u.get('wg', 0.35):.3f}, wp:{u.get('wp', 0.20):.3f}, wd:{u.get('wd', 0.25):.3f}, wq:{u.get('wq', 0.15):.3f}, wa:{u.get('wa', 0.05):.3f}")
+    else:
+        if not usar_pesos_optimizados:
+            print(f"DEBUG: Usuario desactivó pesos optimizados - usando pesos por defecto del usuario")
+        else:
+            print(f"DEBUG: Sin restaurantes disponibles - usando pesos por defecto del usuario")
+        print(f"DEBUG: Pesos utilizados (por defecto) - wg:{u.get('wg', 0.35):.3f}, wp:{u.get('wp', 0.20):.3f}, wd:{u.get('wd', 0.25):.3f}, wq:{u.get('wq', 0.15):.3f}, wa:{u.get('wa', 0.05):.3f}")
     
     # Cargar restaurantes desde archivo para tener las direcciones completas
     restaurantes_completos = await load_restaurantes()
@@ -494,3 +539,55 @@ def _format_price_level(price: float) -> str:
 def _format_rating_stars(rating: float) -> str:
     num_stars = round(rating)
     return "⭐" * num_stars + "☆" * (5 - num_stars)
+
+# Endpoint para recibir feedback del usuario y entrenar la red neuronal
+class FeedbackRequest(BaseModel):
+    usuario: Usuario
+    contexto: Contexto
+    restaurante_seleccionado: Restaurante
+    restaurantes_rechazados: List[Restaurante] = []
+    razones_preferencia: List[str] = []  # precio, distancia, calidad, gustos, abierto, reserva, caracteristicas, otro
+
+@app.post("/api/feedback")
+async def api_feedback(body: FeedbackRequest):
+    """
+    Endpoint para recibir feedback del usuario y entrenar la red neuronal.
+    
+    Se llama cuando el usuario selecciona un restaurante de las recomendaciones.
+    La red neuronal aprende de estas interacciones para mejorar futuras recomendaciones.
+    """
+    try:
+        u = body.usuario.dict()
+        c = body.contexto.dict()
+        restaurante_sel = body.restaurante_seleccionado.dict()
+        restaurantes_rej = [r.dict() for r in body.restaurantes_rechazados]
+        razones = body.razones_preferencia
+        
+        print(f"DEBUG: Feedback recibido - Razones: {razones}")
+        
+        # Entrenar la red neuronal con el feedback
+        nn_optimizer.train_from_feedback(u, restaurante_sel, restaurantes_rej, c, razones)
+        
+        # Guardar modelo actualizado periódicamente (cada 5 feedbacks)
+        history = nn_optimizer.load_history()
+        feedback_count = len(history.get('feedbacks', []))
+        if feedback_count % 5 == 0:
+            try:
+                nn_optimizer.save_model()
+                print(f"DEBUG: Modelo guardado después de {feedback_count} feedbacks")
+            except Exception as e:
+                print(f"DEBUG: Error guardando modelo: {e}")
+        
+        return JSONResponse({
+            "message": "Feedback recibido y procesado correctamente",
+            "modelo_actualizado": True,
+            "total_feedbacks": feedback_count
+        })
+    except Exception as e:
+        print(f"DEBUG: Error procesando feedback: {e}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({
+            "message": f"Error procesando feedback: {str(e)}",
+            "modelo_actualizado": False
+        }, status_code=500)
