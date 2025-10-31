@@ -5,15 +5,24 @@
     "cocinas": [
       "italiana"
     ],
-    "precio_pp": 17000,
+    "precio_pp": 40000,
     "rating": 4.6,
     "n_resenas": 220,
-    "atributos": [],
+    "atributos": [
+      "vegano",
+      "vegetariano"
+    ],
     "reserva": "si",
     "abierto": "si",
     "direccion": "Av. Santa Fe 1234, Palermo, CABA",
     "latitud": -34.5958383,
-    "longitud": -58.3847501
+    "longitud": -58.3847501,
+    "tiempo_espera": 15,
+    "pet_friendly": "no",
+    "estacionamiento_propio": "no",
+    "tipo_comida": "gourmet",
+    "horario_apertura": "19:00",
+    "horario_cierre": "23:30"
   },
   {
     "id": "r2",
@@ -26,13 +35,21 @@
     "rating": 4.4,
     "n_resenas": 120,
     "atributos": [
-      "sin_tacc"
+      "sin_tacc",
+      "celiaco",
+      "accesible"
     ],
     "reserva": "si",
     "abierto": "si",
     "direccion": "Av. Libertador 5678, Recoleta, CABA",
     "latitud": -34.5597059,
-    "longitud": -58.44490750000001
+    "longitud": -58.44490750000001,
+    "tiempo_espera": 20,
+    "pet_friendly": "si",
+    "estacionamiento_propio": "si",
+    "tipo_comida": "fine_dining",
+    "horario_apertura": "12:00",
+    "horario_cierre": "00:00"
   },
   {
     "id": "r3",
@@ -43,11 +60,19 @@
     "precio_pp": 12000,
     "rating": 4.2,
     "n_resenas": 80,
-    "atributos": [],
+    "atributos": [
+      "fit"
+    ],
     "reserva": "no",
     "abierto": "si",
     "direccion": "Defensa 1200, San Telmo, CABA",
     "latitud": -34.62169799999999,
-    "longitud": -58.371224
+    "longitud": -58.371224,
+    "tiempo_espera": 10,
+    "pet_friendly": "si",
+    "estacionamiento_propio": "no",
+    "tipo_comida": "comida_rapida",
+    "horario_apertura": "18:00",
+    "horario_cierre": "01:00"
   }
 ]

@@ -16,13 +16,19 @@
   (slot direccion (default ""))
   (slot latitud (type NUMBER) (default 0.0))
   (slot longitud (type NUMBER) (default 0.0))
+  (slot movilidad_reducida (default ""))
+  (slot rating_minimo (type NUMBER) (default 0.0))
+  (slot requiere_reserva (default ""))
+  (slot solo_abiertos (default ""))
+  (slot tiempo_espera_max (type NUMBER) (default 999.0))
+  (slot tipo_comida_preferido (default ""))
+  (slot estacionamiento_requerido (default ""))
 )
 
 (deftemplate contexto
   (slot clima (default templado))
   (slot dia (default viernes))
   (slot franja (default cena))
-  (slot grupo (default pareja))
 )
 
 (deftemplate restaurante
@@ -39,6 +45,12 @@
   (slot direccion (default ""))
   (slot latitud (type NUMBER) (default 0.0))
   (slot longitud (type NUMBER) (default 0.0))
+  (slot tiempo_espera (type NUMBER) (default 0.0))
+  (slot pet_friendly (type SYMBOL))
+  (slot estacionamiento_propio (type SYMBOL))
+  (slot tipo_comida (default ""))
+  (slot horario_apertura (default ""))
+  (slot horario_cierre (default ""))
 )
 
 (deftemplate descartar (slot rest) (slot razon))
@@ -94,13 +106,85 @@
   (assert (descartar (rest ?r) (razon "no apto sin TACC")))
 )
 
-(defrule filtro-presupuesto
+; filtro-presupuesto eliminado - ahora se penaliza en la puntuación en lugar de descartar
+
+(defrule filtro-movilidad-reducida
   (declare (salience 50))
-  (usuario (presupuesto ?p))
-  (restaurante (id ?r) (precio_pp ?pr))
-  (test (> ?pr ?p))
+  (usuario (movilidad_reducida si))
+  (restaurante (id ?r) (atributos $?a))
+  (test (not (member$ accesible ?a)))
 =>
-  (assert (descartar (rest ?r) (razon "supera el presupuesto")))
+  (assert (descartar (rest ?r) (razon "no es accesible para movilidad reducida")))
+)
+
+(defrule filtro-pet-friendly
+  (declare (salience 50))
+  (usuario (restricciones $?rs))
+  (test (member$ pet_friendly ?rs))
+  (restaurante (id ?r) (pet_friendly ?pf))
+  (test (neq ?pf si))
+=>
+  (assert (descartar (rest ?r) (razon "no es pet friendly")))
+)
+
+; filtro-estacionamiento eliminado - ahora se penaliza en la puntuación en lugar de descartar
+
+(defrule filtro-restricciones-vegano
+  (declare (salience 50))
+  (usuario (restricciones $?rs))
+  (test (member$ vegano ?rs))
+  (restaurante (id ?r) (atributos $?a))
+  (test (not (member$ vegano ?a)))
+=>
+  (assert (descartar (rest ?r) (razon "no tiene opciones veganas")))
+)
+
+(defrule filtro-restricciones-vegetariano
+  (declare (salience 50))
+  (usuario (restricciones $?rs))
+  (test (member$ vegetariano ?rs))
+  (restaurante (id ?r) (atributos $?a))
+  (test (not (or (member$ vegetariano ?a) (member$ vegano ?a))))
+=>
+  (assert (descartar (rest ?r) (razon "no tiene opciones vegetarianas")))
+)
+
+(defrule filtro-restricciones-celiaco
+  (declare (salience 50))
+  (usuario (restricciones $?rs))
+  (test (member$ celiaco ?rs))
+  (restaurante (id ?r) (atributos $?a))
+  (test (not (or (member$ celiaco ?a) (member$ sin_tacc ?a))))
+=>
+  (assert (descartar (rest ?r) (razon "no apto para celiacos")))
+)
+
+(defrule filtro-restricciones-lactosa
+  (declare (salience 50))
+  (usuario (restricciones $?rs))
+  (test (member$ intolerancia_lactosa ?rs))
+  (restaurante (id ?r) (atributos $?a))
+  (test (not (member$ sin_lactosa ?a)))
+=>
+  (assert (descartar (rest ?r) (razon "no apto para intolerancia a la lactosa")))
+)
+
+(defrule filtro-requiere-reserva-si
+  (declare (salience 50))
+  (usuario (requiere_reserva si))
+  (restaurante (id ?r) (reserva ?rv))
+  (test (neq ?rv si))
+=>
+  (assert (descartar (rest ?r) (razon "no requiere reserva")))
+)
+
+(defrule filtro-requiere-reserva-no
+  (declare (salience 50))
+  (usuario (requiere_reserva no))
+  (restaurante (id ?r) (reserva ?rv))
+  (test (eq ?rv si))
+=>
+  (assert (descartar (rest ?r) (razon "requiere reserva")))
 )
 
 ; ---------- CONTEXTO (prioridad media) ----------
@@ -137,8 +221,10 @@
   (restaurante (id ?r) (precio_pp ?pr))
   (not (descartar (rest ?r)))
   (not (puntaje (rest ?r) (criterio precio))) ; Reañadida
+  (not (puntaje (rest ?r) (criterio penalizacion_presupuesto))) ; No puntuar precio si ya hay penalización
   ?ac <- (acum (rest ?r) (U ?U) (justifs $?J))
 =>
+  ; Solo puntúa positivamente si está dentro del presupuesto
   (bind ?s (if (<= ?pr ?p) then (normalizar-inversa ?pr ?p) else 0.0))
   (bind ?inc (* ?wp ?s))
   (modify ?ac (U (+ ?U ?inc)) (justifs (create$ $?J (str-cat "precio=" ?s))))
@@ -186,6 +272,41 @@
   (bind ?inc (* ?wa ?s))
   (modify ?ac (U (+ ?U ?inc)) (justifs (create$ $?J (str-cat "disp=" ?s))))
   (assert (puntaje (rest ?r) (criterio disponibilidad) (valor ?s) (just "turnos/reserva")))
+)
+
+; ---------- PENALIZACIONES (en lugar de descartar) ----------
+(defrule penalizar-presupuesto-excedido
+  (declare (salience 0))
+  (usuario (presupuesto ?p) (wp ?wp))
+  (restaurante (id ?r) (precio_pp ?pr))
+  (test (> ?pr ?p))
+  (not (descartar (rest ?r)))
+  (not (puntaje (rest ?r) (criterio penalizacion_presupuesto)))
+  ?ac <- (acum (rest ?r) (U ?U) (justifs $?J))
+=>
+  ; Penalización proporcional: cuanto más supera, más penaliza (máximo -0.3 del peso wp)
+  (bind ?exceso (/ (- ?pr ?p) ?p)) ; exceso como fracción del presupuesto (ej: 0.5 = 50% más caro)
+  (bind ?penalizacion (min 0.3 (* ?exceso 0.5))) ; penalización máxima del 30% del peso wp
+  (bind ?inc (* ?wp (- 0 ?penalizacion))) ; valor negativo para penalizar
+  (modify ?ac (U (+ ?U ?inc)) (justifs (create$ $?J (str-cat "penalizacion_presupuesto=" (format nil "%.2f" ?penalizacion)))))
+  (assert (puntaje (rest ?r) (criterio penalizacion_presupuesto) (valor ?penalizacion) (just "supera presupuesto")))
+)
+
+(defrule penalizar-sin-estacionamiento
+  (declare (salience 0))
+  (usuario (movilidad ?mov))
+  (test (or (eq ?mov auto) (eq ?mov moto)))
+  (restaurante (id ?r) (estacionamiento_propio ?ep))
+  (test (neq ?ep si))
+  (not (descartar (rest ?r)))
+  (not (puntaje (rest ?r) (criterio penalizacion_estacionamiento)))
+  ?ac <- (acum (rest ?r) (U ?U) (justifs $?J))
+=>
+  ; Penalización fija: -0.15 del índice U total (aproximadamente 15% de penalización)
+  (bind ?penalizacion 0.15)
+  (bind ?inc (- 0 ?penalizacion)) ; valor negativo para penalizar
+  (modify ?ac (U (+ ?U ?inc)) (justifs (create$ $?J "penalizacion_estacionamiento=-0.15")))
+  (assert (puntaje (rest ?r) (criterio penalizacion_estacionamiento) (valor ?penalizacion) (just "sin estacionamiento")))
 )
 
 ; ---------- RANKING Y REPORTE ----------

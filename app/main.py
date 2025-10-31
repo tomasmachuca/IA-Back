@@ -101,6 +101,36 @@ async def geocodificar_direccion(direccion: str) -> Optional[tuple]:
         traceback.print_exc()
     return None
 
+def verificar_horario_abierto(horario_apertura: Optional[str], horario_cierre: Optional[str]) -> str:
+    """Verifica si el restaurante está abierto ahora basado en horarios HH:MM"""
+    if not horario_apertura or not horario_cierre:
+        return "si"  # Si no hay horarios, asumimos que está abierto
+    
+    from datetime import datetime
+    ahora = datetime.now()
+    hora_actual = ahora.hour * 60 + ahora.minute  # Minutos desde medianoche
+    
+    try:
+        partes_apertura = horario_apertura.split(':')
+        partes_cierre = horario_cierre.split(':')
+        minutos_apertura = int(partes_apertura[0]) * 60 + int(partes_apertura[1])
+        minutos_cierre = int(partes_cierre[0]) * 60 + int(partes_cierre[1])
+        
+        # Manejar horarios que cruzan medianoche (ej: 22:00 - 02:00)
+        if minutos_cierre < minutos_apertura:
+            # Cruza medianoche
+            if hora_actual >= minutos_apertura or hora_actual < minutos_cierre:
+                return "si"
+        else:
+            # Horario normal
+            if minutos_apertura <= hora_actual < minutos_cierre:
+                return "si"
+        
+        return "no"
+    except Exception:
+        # Si hay error parseando, asumimos que está abierto
+        return "si"
+
 async def calcular_tiempo_google_maps(origen_direccion: str, destino_direccion: str, modo: str = "walking") -> Optional[float]:
     """Calcula el tiempo de viaje usando Google Maps Distance Matrix API"""
     if not GOOGLE_MAPS_API_KEY:
@@ -162,8 +192,8 @@ class Usuario(BaseModel):
     picante: str = "bajo"
     presupuesto: float = 18
     tiempo_max: float = 15
-    movilidad: str = "a_pie"
-    restricciones: List[str] = []
+    movilidad: str = "a_pie"  # a_pie, auto, moto, bicicleta, transporte_publico
+    restricciones: List[str] = []  # vegano, vegetariano, celiaco, intolerancia_lactosa, kosher, fit
     diversidad: str = "media"
     wg: float = 0.35
     wp: float = 0.20
@@ -173,12 +203,18 @@ class Usuario(BaseModel):
     direccion: Optional[str] = None
     latitud: Optional[float] = None
     longitud: Optional[float] = None
+    movilidad_reducida: Optional[str] = None  # si, no
+    rating_minimo: Optional[float] = None  # mínimo de estrellas requerido (0-5)
+    requiere_reserva: Optional[str] = None  # si, no
+    solo_abiertos: Optional[str] = None  # si, no
+    tiempo_espera_max: Optional[float] = None  # tiempo máximo de espera aceptable (min)
+    tipo_comida_preferido: Optional[str] = None  # comida_rapida, gourmet, fine_dining, casual, bar, cafeteria
+    estacionamiento_requerido: Optional[str] = None  # si, no
 
 class Contexto(BaseModel):
     clima: str = "lluvia"
     dia: str = "viernes"
     franja: str = "cena"
-    grupo: str = "pareja"
 
 class Restaurante(BaseModel):
     id: str
@@ -187,13 +223,19 @@ class Restaurante(BaseModel):
     precio_pp: float
     rating: float
     n_resenas: float
-    atributos: List[str] = []
-    reserva: str = "si"
-    abierto: str = "si"
+    atributos: List[str] = []  # vegano, vegetariano, celiaco, sin_tacc, intolerancia_lactosa, kosher, fit
+    reserva: str = "si"  # si, no
+    abierto: str = "si"  # si, no (actualizado dinámicamente según horarios)
     direccion: Optional[str] = None
     latitud: Optional[float] = None
     longitud: Optional[float] = None
     tiempo_min: Optional[float] = None  # Se calcula dinámicamente
+    tiempo_espera: Optional[float] = None  # Tiempo promedio de espera en minutos
+    pet_friendly: Optional[str] = None  # si, no
+    estacionamiento_propio: Optional[str] = None  # si, no
+    tipo_comida: Optional[str] = None  # comida_rapida, gourmet, casual, fine_dining
+    horario_apertura: Optional[str] = None  # Formato HH:MM (ej: "09:00")
+    horario_cierre: Optional[str] = None  # Formato HH:MM (ej: "23:00")
 
 class RequestBody(BaseModel):
     usuario: Usuario
@@ -296,9 +338,18 @@ async def api_recommend(body: RequestBody):
     else:
         rs = restaurantes_completos.copy()
     
+    # Mapear movilidad a modo de Google Maps API
+    modo_map = {
+        "a_pie": "walking",
+        "auto": "driving",
+        "moto": "driving",  # Google Maps no tiene modo específico para moto
+        "bicicleta": "bicycling",
+        "transporte_publico": "transit"
+    }
+    
     # Si hay dirección del usuario, calcular tiempos reales (siempre recalcular si hay dirección)
     if u.get('direccion') and GOOGLE_MAPS_API_KEY:
-        modo = "walking" if u.get('movilidad') == "a_pie" else "driving"
+        modo = modo_map.get(u.get('movilidad', 'a_pie'), 'walking')
         print(f"DEBUG: Calculando tiempos para {len(rs)} restaurantes desde '{u['direccion']}' en modo {modo}")
         for r in rs:
             if r.get("direccion"):
@@ -314,6 +365,44 @@ async def api_recommend(body: RequestBody):
         for r in rs:
             if not r.get("tiempo_min"):
                 r["tiempo_min"] = 999
+    
+    # Verificar horarios y actualizar campo "abierto" dinámicamente
+    for r in rs:
+        if r.get("horario_apertura") and r.get("horario_cierre"):
+            r["abierto"] = verificar_horario_abierto(r.get("horario_apertura"), r.get("horario_cierre"))
+            print(f"DEBUG: Restaurante {r.get('nombre')} - horarios {r.get('horario_apertura')}-{r.get('horario_cierre')} -> abierto: {r['abierto']}")
+    
+    # Filtrar restaurantes por rating_minimo si está especificado
+    if u.get('rating_minimo') is not None:
+        rating_min = float(u.get('rating_minimo', 0))
+        rs = [r for r in rs if r.get('rating', 0) >= rating_min]
+        print(f"DEBUG: Filtrados restaurantes por rating_minimo >= {rating_min}, quedan {len(rs)} restaurantes")
+    
+    # Filtrar restaurantes por solo_abiertos si está especificado
+    if u.get('solo_abiertos') == 'si':
+        rs = [r for r in rs if r.get('abierto') == 'si']
+        print(f"DEBUG: Filtrados restaurantes por solo_abiertos=si, quedan {len(rs)} restaurantes")
+    
+    # Filtrar restaurantes por tiempo_espera_max si está especificado
+    if u.get('tiempo_espera_max') is not None:
+        tiempo_max = float(u.get('tiempo_espera_max', 999))
+        rs = [r for r in rs if (r.get('tiempo_espera') is None or r.get('tiempo_espera', 0) <= tiempo_max)]
+        print(f"DEBUG: Filtrados restaurantes por tiempo_espera <= {tiempo_max}, quedan {len(rs)} restaurantes")
+    
+    # Filtrar restaurantes por tipo_comida_preferido si está especificado
+    if u.get('tipo_comida_preferido'):
+        tipo_pref = u.get('tipo_comida_preferido')
+        rs = [r for r in rs if r.get('tipo_comida') == tipo_pref]
+        print(f"DEBUG: Filtrados restaurantes por tipo_comida={tipo_pref}, quedan {len(rs)} restaurantes")
+    
+    # Filtrar restaurantes por estacionamiento_requerido si está especificado
+    if u.get('estacionamiento_requerido'):
+        est_req = u.get('estacionamiento_requerido')
+        if est_req == 'si':
+            rs = [r for r in rs if r.get('estacionamiento_propio') == 'si']
+        elif est_req == 'no':
+            rs = [r for r in rs if r.get('estacionamiento_propio') != 'si']
+        print(f"DEBUG: Filtrados restaurantes por estacionamiento_requerido={est_req}, quedan {len(rs)} restaurantes")
     
     # Log de dirección recibida para debug
     if u.get('direccion') or u.get('latitud') or u.get('longitud'):
@@ -351,6 +440,37 @@ async def api_recommend(body: RequestBody):
         if original_rest.get('latitud') and original_rest.get('longitud'):
             rec['latitud'] = original_rest.get('latitud')
             rec['longitud'] = original_rest.get('longitud')
+        
+        # Incluir TODOS los campos de restaurante (incluidos los opcionales)
+        # Campos obligatorios
+        if 'nombre' in original_rest:
+            rec['nombre'] = original_rest['nombre']
+        if 'cocinas' in original_rest:
+            rec['cocinas'] = original_rest['cocinas']
+        if 'atributos' in original_rest:
+            rec['atributos'] = original_rest['atributos']
+        if 'reserva' in original_rest:
+            rec['reserva'] = original_rest['reserva']
+        
+        # Campos opcionales nuevos
+        if original_rest.get('tiempo_espera') is not None:
+            rec['tiempo_espera'] = original_rest.get('tiempo_espera')
+        if original_rest.get('pet_friendly'):
+            rec['pet_friendly'] = original_rest.get('pet_friendly')
+        if original_rest.get('estacionamiento_propio'):
+            rec['estacionamiento_propio'] = original_rest.get('estacionamiento_propio')
+        if original_rest.get('tipo_comida'):
+            rec['tipo_comida'] = original_rest.get('tipo_comida')
+        if original_rest.get('horario_apertura'):
+            rec['horario_apertura'] = original_rest.get('horario_apertura')
+        if original_rest.get('horario_cierre'):
+            rec['horario_cierre'] = original_rest.get('horario_cierre')
+        # Incluir abierto (ya actualizado dinámicamente)
+        if original_rest.get('abierto'):
+            rec['abierto'] = original_rest.get('abierto')
+        # Incluir dirección y coordenadas
+        if original_rest.get('direccion'):
+            rec['direccion'] = original_rest.get('direccion')
             
         formatted_recs.append(rec)
 

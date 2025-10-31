@@ -37,6 +37,9 @@ class ClipsRecommender:
             if isinstance(v, (int, float)):
                 parts.append(f'({k} {v})')
             elif isinstance(v, (list, tuple)):
+                # Si la lista está vacía, no agregar el slot (usará el default en CLIPS)
+                if len(v) == 0:
+                    continue
                 atoms = " ".join(map(str, v))
                 parts.append(f'({k} {atoms})')
             else:
@@ -57,10 +60,19 @@ class ClipsRecommender:
 
     def get_recommendations(self):
         # Read acum + restaurante to return id, nombre, U, justifs
+        # First, get all discarded restaurants
+        discarded = set()
+        for f in self.env.facts():
+            if f.template.name == "descartar":
+                discarded.add(str(f["rest"]))
+        
         recs = []
         for f in self.env.facts():
             if f.template.name == "acum":
                 rest_id = str(f["rest"])
+                # Skip if restaurant is discarded
+                if rest_id in discarded:
+                    continue
                 U = float(f["U"])
                 justifs = list(f["justifs"])
                 # find restaurant name
