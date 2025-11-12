@@ -303,9 +303,16 @@ async def calcular_tiempos(request: CalcularTiemposRequest):
 
 @app.post("/api/recommend")
 async def api_recommend(body: RequestBody):
+    print("=" * 80)
+    print("DEBUG: /api/recommend llamado")
+    print(f"DEBUG: Restaurantes recibidos en el request: {len(body.restaurantes)}")
+    
     u = body.usuario.dict()
     c = body.contexto.dict()
     rs = [r.dict() for r in body.restaurantes]
+    
+    print(f"DEBUG: Usuario - presupuesto: {u.get('presupuesto')}, tiempo_max: {u.get('tiempo_max')}")
+    print(f"DEBUG: Restaurantes iniciales: {len(rs)}")
     
     # Optimizar pesos usando red neuronal solo si el usuario lo permite
     usar_pesos_optimizados = body.usar_pesos_optimizados if hasattr(body, 'usar_pesos_optimizados') else True
@@ -353,8 +360,10 @@ async def api_recommend(body: RequestBody):
     restaurantes_map = {r["id"]: r for r in restaurantes_completos}
     
     # Si se enviaron restaurantes, actualizar con los datos completos (direcciones y coordenadas)
+    # Si no se enviaron restaurantes o el array está vacío, cargar todos del archivo
     actualizado_archivo = False
-    if rs:
+    if rs and len(rs) > 0:
+        print(f"DEBUG: Actualizando {len(rs)} restaurantes con datos del archivo")
         for r in rs:
             if r["id"] in restaurantes_map:
                 # Actualizar con datos del archivo (dirección y coordenadas)
@@ -381,6 +390,7 @@ async def api_recommend(body: RequestBody):
         if actualizado_archivo:
             save_restaurantes(restaurantes_completos)
     else:
+        print(f"DEBUG: No se enviaron restaurantes o array vacío, cargando {len(restaurantes_completos)} del archivo")
         rs = restaurantes_completos.copy()
     
     # Mapear movilidad a modo de Google Maps API
@@ -462,7 +472,17 @@ async def api_recommend(body: RequestBody):
         if u.get('latitud') and u.get('longitud'):
             print(f"DEBUG: Coordenadas - Lat: {u.get('latitud')}, Lon: {u.get('longitud')}")
     
+    print(f"DEBUG: Total restaurantes ANTES de llamar al motor CLIPS: {len(rs)}")
+    if len(rs) == 0:
+        print("ERROR: No hay restaurantes para procesar. Los filtros eliminaron todos los restaurantes.")
+        return JSONResponse([], status_code=200)  # Devolver array vacío en lugar de error
+    
     recs = engine.recommend(usuario=u, contexto=c, restaurantes=rs if rs else None)
+    
+    print(f"DEBUG: Recomendaciones generadas por CLIPS: {len(recs)}")
+    if len(recs) == 0:
+        print("WARNING: El motor CLIPS no generó ninguna recomendación.")
+        print("DEBUG: Verificar que los restaurantes cumplan con las reglas del motor CLIPS.")
     
     # Crear un mapa de restaurantes para acceder fácilmente a sus datos originales
     restaurantes_map = {r["id"]: r for r in rs}

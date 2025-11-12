@@ -72,6 +72,38 @@
         "abierto"
       ],
       "timestamp": "2025-10-31T12:45:51.907105"
+    },
+    {
+      "usuario_id": "u1",
+      "restaurante_seleccionado": "r2",
+      "restaurantes_rechazados": [
+        "r3",
+        "r1"
+      ],
+      "contexto": {
+        "clima": "lluvia",
+        "dia": "viernes",
+        "franja": "merienda"
+      },
+      "razones_preferencia": [
+        "precio",
+        "abierto"
+      ],
+      "timestamp": "2025-11-01T16:36:11.877679"
+    },
+    {
+      "usuario_id": "u1",
+      "restaurante_seleccionado": "r2",
+      "restaurantes_rechazados": [],
+      "contexto": {
+        "clima": "lluvia",
+        "dia": "viernes",
+        "franja": "almuerzo"
+      },
+      "razones_preferencia": [
+        "abierto"
+      ],
+      "timestamp": "2025-11-02T23:54:30.045160"
     }
   ]
 }
